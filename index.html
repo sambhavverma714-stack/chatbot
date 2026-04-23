@@ -1,0 +1,1672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HealthAI — Intelligent Healthcare Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+<style>
+/* ─── RESET & TOKENS ─────────────────────────────────────────── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --c-bg:#05100d;
+  --c-surface:#0a1f18;
+  --c-panel:#0f2d22;
+  --c-green:#00e896;
+  --c-teal:#00d4c8;
+  --c-blue:#4af0ff;
+  --c-text:#e8f5f0;
+  --c-muted:#7fa89a;
+  --c-border:rgba(0,232,150,0.12);
+  --c-glow:rgba(0,232,150,0.25);
+  --font-head:'Syne',sans-serif;
+  --font-body:'DM Sans',sans-serif;
+  --r:18px;
+  --ease:cubic-bezier(.25,.8,.25,1);
+}
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{
+  font-family:var(--font-body);
+  background:var(--c-bg);
+  color:var(--c-text);
+  overflow-x:hidden;
+  cursor:none;
+}
+
+/* ─── CUSTOM CURSOR ──────────────────────────────────────────── */
+#cursor{
+  width:12px;height:12px;
+  background:var(--c-green);
+  border-radius:50%;
+  position:fixed;top:0;left:0;
+  pointer-events:none;
+  z-index:99999;
+  transform:translate(-50%,-50%);
+  transition:transform .15s var(--ease),width .3s,height .3s,background .3s;
+  mix-blend-mode:exclusion;
+}
+#cursor-ring{
+  width:36px;height:36px;
+  border:1.5px solid rgba(0,232,150,0.5);
+  border-radius:50%;
+  position:fixed;top:0;left:0;
+  pointer-events:none;
+  z-index:99998;
+  transform:translate(-50%,-50%);
+  transition:transform .08s var(--ease);
+}
+body:has(a:hover) #cursor,body:has(button:hover) #cursor{
+  width:20px;height:20px;background:var(--c-teal);
+}
+
+/* ─── NOISE TEXTURE OVERLAY ──────────────────────────────────── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:9999;opacity:.4;
+}
+
+/* ─── SCROLLBAR ──────────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--c-bg)}
+::-webkit-scrollbar-thumb{background:var(--c-green);border-radius:4px}
+
+/* ─── GLOBAL UTILITY ─────────────────────────────────────────── */
+.tag{
+  display:inline-block;
+  padding:6px 16px;
+  border:1px solid var(--c-green);
+  border-radius:100px;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  color:var(--c-green);
+  margin-bottom:20px;
+}
+.gradient-text{
+  background:linear-gradient(135deg,var(--c-green),var(--c-teal),var(--c-blue));
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.section-label{
+  font-family:var(--font-head);
+  font-size:11px;
+  letter-spacing:.3em;
+  text-transform:uppercase;
+  color:var(--c-green);
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:12px;
+}
+.section-label::before{content:'';width:32px;height:1px;background:var(--c-green)}
+
+/* ─── SCROLL REVEAL ──────────────────────────────────────────── */
+.reveal{
+  opacity:0;transform:translateY(60px);
+  transition:opacity 1s var(--ease),transform 1s var(--ease);
+}
+.reveal.in{opacity:1;transform:translateY(0)}
+.reveal-left{opacity:0;transform:translateX(-60px);transition:opacity 1s var(--ease),transform 1s var(--ease)}
+.reveal-left.in{opacity:1;transform:translateX(0)}
+.reveal-right{opacity:0;transform:translateX(60px);transition:opacity 1s var(--ease),transform 1s var(--ease)}
+.reveal-right.in{opacity:1;transform:translateX(0)}
+
+/* ─── NAVBAR ─────────────────────────────────────────────────── */
+nav{
+  position:fixed;top:0;left:0;right:0;
+  z-index:1000;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 60px;
+  height:80px;
+  background:rgba(5,16,13,0.7);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--c-border);
+  transition:all .4s;
+}
+nav.scrolled{
+  height:64px;
+  background:rgba(5,16,13,0.95);
+  box-shadow:0 4px 40px rgba(0,0,0,0.5);
+}
+.nav-logo{
+  font-family:var(--font-head);
+  font-size:22px;font-weight:800;
+  display:flex;align-items:center;gap:10px;
+  text-decoration:none;color:var(--c-text);
+}
+.nav-logo span{color:var(--c-green)}
+.nav-logo-dot{
+  width:8px;height:8px;
+  background:var(--c-green);
+  border-radius:50%;
+  animation:pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot{
+  0%,100%{box-shadow:0 0 0 0 var(--c-glow)}
+  50%{box-shadow:0 0 0 8px transparent}
+}
+.nav-links{display:flex;gap:36px;align-items:center}
+.nav-links a{
+  font-size:14px;font-weight:500;
+  color:var(--c-muted);text-decoration:none;
+  position:relative;
+  transition:color .3s;
+}
+.nav-links a::after{
+  content:'';position:absolute;bottom:-4px;left:0;right:0;
+  height:1px;background:var(--c-green);
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .3s var(--ease);
+}
+.nav-links a:hover{color:var(--c-text)}
+.nav-links a:hover::after{transform:scaleX(1)}
+.nav-cta{
+  padding:10px 24px;
+  background:transparent;
+  border:1px solid var(--c-green);
+  border-radius:100px;
+  color:var(--c-green);
+  font-size:13px;font-weight:600;
+  cursor:pointer;
+  transition:all .3s;
+}
+.nav-cta:hover{background:var(--c-green);color:var(--c-bg)}
+
+/* ─── HERO ───────────────────────────────────────────────────── */
+.hero{
+  min-height:100vh;
+  display:flex;align-items:center;
+  padding:120px 80px 60px;
+  position:relative;
+  overflow:hidden;
+}
+/* Ambient orbs */
+.hero::before{
+  content:'';
+  position:absolute;top:-200px;right:-200px;
+  width:700px;height:700px;
+  background:radial-gradient(circle,rgba(0,232,150,.12) 0%,transparent 70%);
+  border-radius:50%;
+  animation:orb-drift 8s ease-in-out infinite alternate;
+}
+.hero::after{
+  content:'';
+  position:absolute;bottom:-300px;left:-100px;
+  width:600px;height:600px;
+  background:radial-gradient(circle,rgba(74,240,255,.08) 0%,transparent 70%);
+  border-radius:50%;
+  animation:orb-drift 12s ease-in-out infinite alternate-reverse;
+}
+@keyframes orb-drift{
+  0%{transform:translate(0,0) scale(1)}
+  100%{transform:translate(40px,40px) scale(1.1)}
+}
+.hero-content{
+  position:relative;z-index:2;
+  max-width:700px;
+}
+.hero-eyebrow{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:28px;
+}
+.hero-eyebrow .live-badge{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;
+  background:rgba(0,232,150,.1);
+  border:1px solid rgba(0,232,150,.25);
+  border-radius:100px;
+  font-size:12px;font-weight:600;
+  color:var(--c-green);
+}
+.live-dot{
+  width:7px;height:7px;
+  background:var(--c-green);
+  border-radius:50%;
+  animation:live-pulse 1.4s ease-in-out infinite;
+}
+@keyframes live-pulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.4;transform:scale(.7)}
+}
+.hero h1{
+  font-family:var(--font-head);
+  font-size:clamp(48px,5.5vw,78px);
+  font-weight:800;
+  line-height:1.05;
+  letter-spacing:-.03em;
+  margin-bottom:28px;
+}
+.hero p.lead{
+  font-size:19px;font-weight:300;
+  line-height:1.75;
+  color:#a8ccc0;
+  max-width:580px;
+  margin-bottom:44px;
+}
+.hero-actions{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.btn-primary{
+  padding:16px 36px;
+  background:linear-gradient(135deg,var(--c-green),var(--c-teal));
+  border:none;border-radius:100px;
+  color:var(--c-bg);
+  font-family:var(--font-body);
+  font-size:15px;font-weight:600;
+  cursor:pointer;
+  position:relative;overflow:hidden;
+  transition:transform .3s var(--ease),box-shadow .3s;
+  box-shadow:0 0 40px rgba(0,232,150,.3);
+}
+.btn-primary::after{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--c-blue),var(--c-green));
+  opacity:0;transition:opacity .4s;
+}
+.btn-primary:hover{transform:translateY(-3px);box-shadow:0 0 60px rgba(0,232,150,.5)}
+.btn-primary:hover::after{opacity:1}
+.btn-primary span{position:relative;z-index:1}
+.btn-ghost{
+  padding:16px 36px;
+  background:transparent;
+  border:1px solid rgba(0,232,150,.3);
+  border-radius:100px;
+  color:var(--c-text);
+  font-size:15px;font-weight:500;
+  cursor:pointer;
+  transition:all .3s;
+}
+.btn-ghost:hover{
+  border-color:var(--c-green);
+  background:rgba(0,232,150,.05);
+}
+.hero-trust{
+  margin-top:56px;
+  display:flex;align-items:center;gap:20px;
+  flex-wrap:wrap;
+}
+.trust-avatars{
+  display:flex;
+}
+.trust-avatars .av{
+  width:36px;height:36px;
+  border-radius:50%;
+  border:2px solid var(--c-bg);
+  background:linear-gradient(135deg,var(--c-green),var(--c-teal));
+  margin-left:-10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;color:var(--c-bg);
+}
+.trust-avatars .av:first-child{margin-left:0}
+.trust-text{font-size:13px;color:var(--c-muted)}
+.trust-text strong{color:var(--c-text)}
+.hero-visual{
+  position:absolute;right:80px;top:50%;
+  transform:translateY(-50%);
+  width:480px;
+  z-index:1;
+}
+.hero-card{
+  background:rgba(10,31,24,0.85);
+  border:1px solid var(--c-border);
+  border-radius:24px;
+  padding:32px;
+  backdrop-filter:blur(20px);
+  box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.05);
+  animation:hero-float 5s ease-in-out infinite;
+}
+@keyframes hero-float{
+  0%,100%{transform:translateY(0)}
+  50%{transform:translateY(-16px)}
+}
+.hc-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:24px;
+}
+.hc-title{font-family:var(--font-head);font-size:15px;font-weight:700}
+.hc-status{
+  font-size:11px;color:var(--c-green);
+  background:rgba(0,232,150,.1);
+  padding:4px 10px;border-radius:100px;
+  border:1px solid rgba(0,232,150,.2);
+}
+.hc-vitals{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
+.vital{
+  background:var(--c-panel);
+  border-radius:14px;
+  padding:16px;
+  border:1px solid var(--c-border);
+}
+.vital-label{font-size:11px;color:var(--c-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.vital-val{font-family:var(--font-head);font-size:24px;font-weight:700;color:var(--c-green)}
+.vital-sub{font-size:11px;color:var(--c-muted);margin-top:2px}
+.hc-bar{margin-bottom:16px}
+.bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--c-muted);margin-bottom:6px}
+.bar-track{background:var(--c-panel);border-radius:100px;height:6px;overflow:hidden}
+.bar-fill{
+  height:100%;border-radius:100px;
+  background:linear-gradient(90deg,var(--c-green),var(--c-teal));
+  animation:fill-in 2s 1s var(--ease) both;
+}
+@keyframes fill-in{from{width:0}}
+.hc-insight{
+  background:rgba(0,232,150,.06);
+  border:1px solid rgba(0,232,150,.15);
+  border-radius:12px;
+  padding:14px 16px;
+  font-size:13px;
+  line-height:1.6;
+  color:#9dc8ba;
+  display:flex;gap:10px;align-items:flex-start;
+}
+.hc-insight .icon{font-size:16px;flex-shrink:0;margin-top:2px}
+/* Floating mini cards */
+.hero-badge{
+  position:absolute;
+  background:rgba(10,31,24,0.9);
+  border:1px solid var(--c-border);
+  border-radius:14px;
+  padding:12px 18px;
+  backdrop-filter:blur(12px);
+  font-size:13px;
+  display:flex;align-items:center;gap:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+.hero-badge.b1{top:120px;right:580px;animation:badge-float 6s ease-in-out infinite}
+.hero-badge.b2{bottom:200px;right:560px;animation:badge-float 7s 1s ease-in-out infinite}
+@keyframes badge-float{
+  0%,100%{transform:translateY(0) rotate(-1deg)}
+  50%{transform:translateY(-10px) rotate(1deg)}
+}
+
+/* ─── MARQUEE BAND ───────────────────────────────────────────── */
+.marquee-band{
+  background:var(--c-panel);
+  border-top:1px solid var(--c-border);
+  border-bottom:1px solid var(--c-border);
+  padding:18px 0;
+  overflow:hidden;
+  white-space:nowrap;
+}
+.marquee-inner{
+  display:inline-block;
+  animation:marquee 25s linear infinite;
+}
+.marquee-inner span{
+  font-family:var(--font-head);
+  font-size:12px;font-weight:600;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--c-muted);
+  margin:0 40px;
+}
+.marquee-inner .dot{color:var(--c-green)}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ─── PROBLEM / SOLUTION ─────────────────────────────────────── */
+.problem-section{
+  padding:140px 80px;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:80px;
+  align-items:center;
+}
+.problem-section h2{
+  font-family:var(--font-head);
+  font-size:clamp(36px,3.5vw,52px);
+  font-weight:800;
+  line-height:1.1;
+  letter-spacing:-.03em;
+  margin-bottom:24px;
+}
+.problem-section p{
+  font-size:17px;line-height:1.85;
+  color:#a8ccc0;
+  margin-bottom:20px;
+}
+.problem-list{
+  list-style:none;
+  margin-top:32px;
+  display:flex;flex-direction:column;gap:16px;
+}
+.problem-list li{
+  display:flex;gap:14px;align-items:flex-start;
+  font-size:15px;line-height:1.6;color:#c8ddd8;
+}
+.problem-list .check{
+  width:22px;height:22px;
+  background:rgba(0,232,150,.15);
+  border:1px solid rgba(0,232,150,.3);
+  border-radius:50%;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:var(--c-green);
+  margin-top:2px;
+}
+.stats-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:20px;
+}
+.stat-card{
+  background:var(--c-surface);
+  border:1px solid var(--c-border);
+  border-radius:20px;
+  padding:28px 24px;
+  position:relative;overflow:hidden;
+  transition:transform .4s var(--ease),box-shadow .4s;
+}
+.stat-card:hover{
+  transform:translateY(-6px);
+  box-shadow:0 20px 50px rgba(0,0,0,.4),0 0 30px rgba(0,232,150,.08);
+}
+.stat-card::before{
+  content:'';
+  position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--c-green),var(--c-teal));
+  transform:scaleX(0);transform-origin:left;
+  transition:transform .4s var(--ease);
+}
+.stat-card:hover::before{transform:scaleX(1)}
+.stat-num{
+  font-family:var(--font-head);
+  font-size:42px;font-weight:800;
+  line-height:1;
+  margin-bottom:8px;
+  background:linear-gradient(135deg,var(--c-green),var(--c-teal));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.stat-desc{font-size:14px;color:var(--c-muted);line-height:1.5}
+
+/* ─── HOW IT WORKS ───────────────────────────────────────────── */
+.how-section{
+  padding:120px 80px;
+  background:var(--c-surface);
+  border-top:1px solid var(--c-border);
+  border-bottom:1px solid var(--c-border);
+  position:relative;overflow:hidden;
+}
+.how-section::before{
+  content:'';
+  position:absolute;top:-200px;left:50%;transform:translateX(-50%);
+  width:800px;height:400px;
+  background:radial-gradient(ellipse,rgba(0,232,150,.06) 0%,transparent 70%);
+}
+.how-section h2{
+  font-family:var(--font-head);
+  font-size:clamp(36px,3.5vw,52px);
+  font-weight:800;letter-spacing:-.03em;
+  text-align:center;
+  margin-bottom:16px;
+}
+.how-section .sub{
+  text-align:center;font-size:18px;
+  color:var(--c-muted);line-height:1.7;
+  max-width:600px;margin:0 auto 80px;
+}
+.steps{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  position:relative;
+  counter-reset:step;
+}
+.steps::before{
+  content:'';
+  position:absolute;top:48px;left:12.5%;right:12.5%;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--c-green),var(--c-teal),var(--c-green),transparent);
+}
+.step{
+  text-align:center;
+  padding:0 24px;
+  position:relative;
+}
+.step-num{
+  width:96px;height:96px;
+  border-radius:50%;
+  background:var(--c-panel);
+  border:1px solid var(--c-border);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 28px;
+  font-family:var(--font-head);
+  font-size:28px;font-weight:800;
+  color:var(--c-green);
+  position:relative;z-index:1;
+  transition:all .4s var(--ease);
+  box-shadow:0 0 0 0 var(--c-glow);
+}
+.step:hover .step-num{
+  background:var(--c-green);color:var(--c-bg);
+  box-shadow:0 0 40px var(--c-glow);
+  transform:scale(1.1);
+}
+.step h3{font-family:var(--font-head);font-size:18px;font-weight:700;margin-bottom:12px}
+.step p{font-size:14px;line-height:1.7;color:var(--c-muted)}
+
+/* ─── FEATURES GRID ──────────────────────────────────────────── */
+.features-section{padding:140px 80px}
+.features-section h2{
+  font-family:var(--font-head);
+  font-size:clamp(36px,3.5vw,52px);
+  font-weight:800;letter-spacing:-.03em;
+  margin-bottom:16px;
+  max-width:600px;
+}
+.features-section .sub{
+  font-size:18px;color:var(--c-muted);line-height:1.7;
+  max-width:580px;margin-bottom:70px;
+}
+.features-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:24px;
+}
+.feature-card{
+  background:var(--c-surface);
+  border:1px solid var(--c-border);
+  border-radius:24px;
+  padding:36px 32px;
+  position:relative;overflow:hidden;
+  transition:all .4s var(--ease);
+  group:true;
+}
+.feature-card::before{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(0,232,150,.06),transparent);
+  opacity:0;transition:opacity .4s;
+}
+.feature-card:hover{
+  border-color:rgba(0,232,150,.3);
+  transform:translateY(-8px);
+  box-shadow:0 30px 60px rgba(0,0,0,.4),0 0 40px rgba(0,232,150,.08);
+}
+.feature-card:hover::before{opacity:1}
+.feature-card.large{grid-column:span 2}
+.feature-icon{
+  width:56px;height:56px;
+  background:rgba(0,232,150,.1);
+  border:1px solid rgba(0,232,150,.2);
+  border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;
+  margin-bottom:24px;
+  transition:all .4s;
+}
+.feature-card:hover .feature-icon{
+  background:rgba(0,232,150,.2);
+  transform:scale(1.1) rotate(5deg);
+}
+.feature-card h3{
+  font-family:var(--font-head);
+  font-size:20px;font-weight:700;
+  margin-bottom:14px;
+}
+.feature-card p{
+  font-size:15px;line-height:1.75;
+  color:var(--c-muted);
+}
+.feature-card .feature-tag{
+  margin-top:20px;
+  font-size:11px;font-weight:600;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--c-green);
+}
+
+/* ─── ANALYSIS VISUAL ────────────────────────────────────────── */
+.analysis-section{
+  padding:120px 80px;
+  background:var(--c-surface);
+  border-top:1px solid var(--c-border);
+  border-bottom:1px solid var(--c-border);
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:80px;align-items:center;
+}
+.analysis-visual{position:relative}
+.analysis-card{
+  background:var(--c-panel);
+  border:1px solid var(--c-border);
+  border-radius:24px;
+  padding:32px;
+  box-shadow:0 30px 80px rgba(0,0,0,.5);
+}
+.ac-head{
+  display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:28px;
+}
+.ac-title{font-family:var(--font-head);font-size:16px;font-weight:700}
+.ac-badge{
+  padding:4px 12px;
+  background:rgba(74,240,255,.1);
+  border:1px solid rgba(74,240,255,.2);
+  border-radius:100px;
+  font-size:11px;color:var(--c-blue);
+}
+.symptom-row{
+  display:flex;align-items:center;
+  justify-content:space-between;
+  padding:14px 0;
+  border-bottom:1px solid var(--c-border);
+}
+.symptom-row:last-child{border-bottom:none}
+.symptom-name{font-size:14px;font-weight:500}
+.symptom-level{
+  display:flex;gap:4px;
+}
+.level-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--c-border);
+}
+.level-dot.active.green{background:var(--c-green)}
+.level-dot.active.yellow{background:#f0d060}
+.level-dot.active.red{background:#ff5c5c}
+.symptom-pct{font-size:13px;font-weight:600;color:var(--c-green)}
+.floating-tag{
+  position:absolute;
+  background:rgba(5,16,13,0.95);
+  border:1px solid var(--c-border);
+  border-radius:16px;
+  padding:14px 20px;
+  backdrop-filter:blur(10px);
+  box-shadow:0 20px 40px rgba(0,0,0,.5);
+  animation:hero-float 5s ease-in-out infinite;
+}
+.floating-tag.ft1{bottom:-30px;right:-30px}
+.floating-tag.ft2{top:-20px;left:-30px;animation-delay:2s}
+.ft-label{font-size:11px;color:var(--c-muted);margin-bottom:4px}
+.ft-val{font-family:var(--font-head);font-size:22px;font-weight:800;color:var(--c-green)}
+.analysis-text h2{
+  font-family:var(--font-head);
+  font-size:clamp(32px,3vw,46px);
+  font-weight:800;letter-spacing:-.03em;
+  margin-bottom:24px;line-height:1.1;
+}
+.analysis-text p{
+  font-size:17px;line-height:1.85;
+  color:#a8ccc0;margin-bottom:20px;
+}
+.capability-list{list-style:none;margin-top:32px;display:flex;flex-direction:column;gap:14px}
+.capability-list li{
+  display:flex;gap:14px;align-items:flex-start;
+  font-size:15px;line-height:1.6;color:#c8ddd8;
+}
+.cap-icon{
+  font-size:18px;flex-shrink:0;
+  margin-top:1px;
+}
+
+/* ─── TESTIMONIALS ───────────────────────────────────────────── */
+.testimonials-section{padding:140px 80px}
+.testimonials-section h2{
+  font-family:var(--font-head);
+  font-size:clamp(36px,3.5vw,52px);
+  font-weight:800;letter-spacing:-.03em;
+  text-align:center;margin-bottom:16px;
+}
+.testimonials-section .sub{
+  text-align:center;font-size:18px;
+  color:var(--c-muted);margin-bottom:70px;
+}
+.testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.testi-card{
+  background:var(--c-surface);
+  border:1px solid var(--c-border);
+  border-radius:24px;
+  padding:32px;
+  transition:all .4s var(--ease);
+  position:relative;overflow:hidden;
+}
+.testi-card:hover{
+  border-color:rgba(0,232,150,.3);
+  transform:translateY(-6px);
+  box-shadow:0 20px 50px rgba(0,0,0,.4);
+}
+.testi-card::before{
+  content:'"';
+  position:absolute;top:-10px;right:24px;
+  font-family:var(--font-head);
+  font-size:120px;font-weight:800;
+  color:rgba(0,232,150,.05);
+  line-height:1;
+}
+.testi-stars{
+  display:flex;gap:4px;margin-bottom:20px;
+}
+.star{color:var(--c-green);font-size:14px}
+.testi-text{
+  font-size:15px;line-height:1.8;
+  color:#c8ddd8;margin-bottom:24px;
+  font-style:italic;
+}
+.testi-author{display:flex;align-items:center;gap:14px}
+.testi-avatar{
+  width:44px;height:44px;border-radius:50%;
+  background:linear-gradient(135deg,var(--c-green),var(--c-teal));
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-head);font-size:16px;font-weight:700;
+  color:var(--c-bg);flex-shrink:0;
+}
+.testi-name{font-family:var(--font-head);font-size:14px;font-weight:700}
+.testi-role{font-size:12px;color:var(--c-muted);margin-top:2px}
+
+/* ─── TECHNOLOGY ─────────────────────────────────────────────── */
+.tech-section{
+  padding:120px 80px;
+  background:var(--c-surface);
+  border-top:1px solid var(--c-border);
+  border-bottom:1px solid var(--c-border);
+}
+.tech-section h2{
+  font-family:var(--font-head);
+  font-size:clamp(36px,3.5vw,52px);
+  font-weight:800;letter-spacing:-.03em;
+  margin-bottom:16px;max-width:560px;
+}
+.tech-section .sub{
+  font-size:18px;color:var(--c-muted);
+  margin-bottom:70px;max-width:580px;
+}
+.tech-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.tech-card{
+  background:var(--c-panel);
+  border:1px solid var(--c-border);
+  border-radius:24px;
+  padding:36px;
+  display:flex;gap:24px;
+  align-items:flex-start;
+  transition:all .4s var(--ease);
+}
+.tech-card:hover{
+  border-color:rgba(0,232,150,.3);
+  transform:translateY(-6px);
+  box-shadow:0 20px 50px rgba(0,0,0,.4);
+}
+.tech-num{
+  font-family:var(--font-head);
+  font-size:40px;font-weight:800;
+  color:rgba(0,232,150,.2);
+  line-height:1;flex-shrink:0;
+  min-width:50px;
+}
+.tech-card h3{font-family:var(--font-head);font-size:18px;font-weight:700;margin-bottom:10px}
+.tech-card p{font-size:14px;line-height:1.75;color:var(--c-muted)}
+
+/* ─── PRICING / PLANS ────────────────────────────────────────── */
+.plans-section{padding:140px 80px}
+.plans-section h2{
+  font-family:var(--font-head);
+  font-size:clamp(36px,3.5vw,52px);
+  font-weight:800;letter-spacing:-.03em;
+  text-align:center;margin-bottom:16px;
+}
+.plans-section .sub{
+  text-align:center;font-size:18px;
+  color:var(--c-muted);margin-bottom:70px;
+}
+.plans-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:24px;max-width:1000px;margin:0 auto;
+}
+.plan-card{
+  background:var(--c-surface);
+  border:1px solid var(--c-border);
+  border-radius:24px;
+  padding:36px 32px;
+  position:relative;
+  transition:all .4s var(--ease);
+}
+.plan-card:hover{transform:translateY(-8px);box-shadow:0 30px 60px rgba(0,0,0,.4)}
+.plan-card.popular{
+  border-color:var(--c-green);
+  background:rgba(0,232,150,.04);
+}
+.plan-badge{
+  position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+  padding:4px 18px;
+  background:linear-gradient(135deg,var(--c-green),var(--c-teal));
+  border-radius:100px;
+  font-size:11px;font-weight:700;
+  color:var(--c-bg);white-space:nowrap;
+}
+.plan-name{
+  font-family:var(--font-head);font-size:15px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.1em;
+  color:var(--c-muted);margin-bottom:12px;
+}
+.plan-price{
+  font-family:var(--font-head);
+  font-size:42px;font-weight:800;
+  color:var(--c-text);
+  margin-bottom:6px;
+}
+.plan-price span{font-size:16px;color:var(--c-muted);font-weight:400}
+.plan-desc{
+  font-size:13px;color:var(--c-muted);
+  margin-bottom:28px;line-height:1.6;
+}
+.plan-feats{list-style:none;margin-bottom:36px;display:flex;flex-direction:column;gap:12px}
+.plan-feats li{
+  display:flex;gap:10px;
+  font-size:14px;color:#c8ddd8;
+}
+.plan-feats .tick{color:var(--c-green);font-size:13px;flex-shrink:0;margin-top:2px}
+.plan-btn{
+  width:100%;padding:14px;
+  border-radius:100px;
+  font-family:var(--font-body);font-size:14px;font-weight:600;
+  cursor:pointer;transition:all .3s;
+}
+.plan-btn.outline{
+  background:transparent;
+  border:1px solid var(--c-border);
+  color:var(--c-text);
+}
+.plan-btn.outline:hover{border-color:var(--c-green);color:var(--c-green)}
+.plan-btn.filled{
+  background:linear-gradient(135deg,var(--c-green),var(--c-teal));
+  border:none;color:var(--c-bg);
+  box-shadow:0 0 30px rgba(0,232,150,.3);
+}
+.plan-btn.filled:hover{box-shadow:0 0 50px rgba(0,232,150,.5);transform:translateY(-2px)}
+
+/* ─── FAQ ────────────────────────────────────────────────────── */
+.faq-section{
+  padding:120px 80px;
+  background:var(--c-surface);
+  border-top:1px solid var(--c-border);
+}
+.faq-section h2{
+  font-family:var(--font-head);
+  font-size:clamp(36px,3.5vw,52px);
+  font-weight:800;letter-spacing:-.03em;
+  text-align:center;margin-bottom:70px;
+}
+.faq-list{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.faq-item{
+  background:var(--c-panel);
+  border:1px solid var(--c-border);
+  border-radius:16px;
+  overflow:hidden;
+  transition:border-color .3s;
+}
+.faq-item.open{border-color:rgba(0,232,150,.3)}
+.faq-q{
+  width:100%;background:none;border:none;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:22px 28px;
+  font-family:var(--font-body);font-size:16px;font-weight:500;
+  color:var(--c-text);cursor:pointer;
+  text-align:left;
+}
+.faq-q:hover{color:var(--c-green)}
+.faq-icon{
+  width:28px;height:28px;flex-shrink:0;
+  background:rgba(0,232,150,.1);border:1px solid rgba(0,232,150,.2);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:18px;color:var(--c-green);
+  transition:transform .3s;
+}
+.faq-item.open .faq-icon{transform:rotate(45deg)}
+.faq-a{
+  max-height:0;overflow:hidden;
+  transition:max-height .5s var(--ease);
+}
+.faq-item.open .faq-a{max-height:300px}
+.faq-a p{padding:0 28px 24px;font-size:15px;line-height:1.8;color:var(--c-muted)}
+
+/* ─── CTA BANNER ─────────────────────────────────────────────── */
+.cta-section{
+  padding:140px 80px;
+  text-align:center;
+  position:relative;overflow:hidden;
+}
+.cta-section::before{
+  content:'';
+  position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%,rgba(0,232,150,.12) 0%,transparent 60%),
+    radial-gradient(ellipse 60% 40% at 50% 100%,rgba(74,240,255,.08) 0%,transparent 60%);
+}
+.cta-section h2{
+  font-family:var(--font-head);
+  font-size:clamp(40px,5vw,70px);
+  font-weight:800;letter-spacing:-.04em;
+  line-height:1.05;
+  margin-bottom:24px;
+  position:relative;z-index:1;
+}
+.cta-section p{
+  font-size:19px;color:var(--c-muted);
+  max-width:560px;margin:0 auto 44px;
+  line-height:1.75;
+  position:relative;z-index:1;
+}
+.cta-actions{display:flex;gap:16px;justify-content:center;position:relative;z-index:1}
+.cta-grid{
+  display:flex;gap:24px;
+  justify-content:center;flex-wrap:wrap;
+  margin-top:60px;
+  position:relative;z-index:1;
+}
+.cta-stat{
+  text-align:center;
+  padding:24px 36px;
+  background:rgba(10,31,24,.6);
+  border:1px solid var(--c-border);
+  border-radius:20px;
+  backdrop-filter:blur(10px);
+}
+.cta-stat-num{
+  font-family:var(--font-head);
+  font-size:32px;font-weight:800;
+  color:var(--c-green);
+}
+.cta-stat-label{font-size:13px;color:var(--c-muted);margin-top:4px}
+
+/* ─── FOOTER ─────────────────────────────────────────────────── */
+footer{
+  background:var(--c-surface);
+  border-top:1px solid var(--c-border);
+  padding:80px 80px 40px;
+}
+.footer-top{
+  display:grid;grid-template-columns:2fr 1fr 1fr 1fr;
+  gap:60px;margin-bottom:60px;
+}
+.footer-brand h3{
+  font-family:var(--font-head);
+  font-size:22px;font-weight:800;
+  color:var(--c-text);margin-bottom:14px;
+}
+.footer-brand p{font-size:14px;line-height:1.8;color:var(--c-muted);max-width:300px}
+.footer-col h4{
+  font-family:var(--font-head);
+  font-size:13px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;
+  color:var(--c-green);margin-bottom:20px;
+}
+.footer-col a{
+  display:block;
+  font-size:14px;color:var(--c-muted);
+  text-decoration:none;margin-bottom:10px;
+  transition:color .3s;
+}
+.footer-col a:hover{color:var(--c-text)}
+.footer-bottom{
+  padding-top:32px;
+  border-top:1px solid var(--c-border);
+  display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:16px;
+}
+.footer-bottom p{font-size:13px;color:var(--c-muted)}
+.footer-bottom a{color:var(--c-green);text-decoration:none}
+
+/* ─── CHATBOT ────────────────────────────────────────────────── */
+df-messenger{
+  --df-messenger-button-titlebar-color:#00e896;
+  --df-messenger-chat-background-color:#0a1f18;
+  --df-messenger-send-icon:#00e896;
+  position:fixed;bottom:32px;right:32px;z-index:9000;
+}
+
+/* ─── RESPONSIVE ─────────────────────────────────────────────── */
+@media(max-width:1100px){
+  nav{padding:0 32px}
+  .hero{padding:100px 40px 60px;flex-direction:column}
+  .hero-visual{position:relative;right:auto;top:auto;transform:none;width:100%;max-width:500px;margin:40px auto 0}
+  .hero-badge{display:none}
+  .problem-section,.analysis-section{grid-template-columns:1fr;gap:50px;padding:80px 40px}
+  .how-section,.features-section,.testimonials-section,.tech-section,.plans-section,.faq-section,.cta-section{padding:80px 40px}
+  .steps{grid-template-columns:1fr 1fr;gap:40px}
+  .steps::before{display:none}
+  .features-grid,.tech-grid,.plans-grid{grid-template-columns:1fr}
+  .feature-card.large{grid-column:span 1}
+  .testi-grid{grid-template-columns:1fr}
+  .footer-top{grid-template-columns:1fr 1fr;gap:40px}
+}
+@media(max-width:600px){
+  nav{padding:0 20px}
+  nav h2{font-size:17px}
+  .nav-links{gap:16px}
+  .hero h1{font-size:38px}
+  .hero p.lead{font-size:16px}
+  .hero-actions{flex-direction:column}
+  .btn-primary,.btn-ghost{width:100%;text-align:center}
+  .footer-top{grid-template-columns:1fr}
+  .footer-bottom{flex-direction:column;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- ─── NAVBAR ─── -->
+<nav id="navbar">
+  <a class="nav-logo" href="#">
+    <div class="nav-logo-dot"></div>
+    Health<span>AI</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#how">How It Works</a>
+    <a href="#tech">Technology</a>
+    <a href="#plans">Plans</a>
+    <a href="#faq">FAQ</a>
+    <button class="nav-cta">Start Free →</button>
+  </div>
+</nav>
+
+<!-- ─── HERO ─── -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-eyebrow">
+      <div class="live-badge"><div class="live-dot"></div>Live AI System</div>
+    </div>
+    <h1>Your <span class="gradient-text">Intelligent</span><br>Health Companion</h1>
+    <p class="lead">HealthAI combines advanced natural language understanding, clinical-grade symptom analysis, and real-time medical knowledge to deliver personalized health guidance — anytime, from anywhere, in seconds.</p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="document.querySelector('df-messenger').shadowRoot.querySelector('df-messenger-chat').click()"><span>Start Free Consultation →</span></button>
+      <button class="btn-ghost">Watch Demo ▶</button>
+    </div>
+    <div class="hero-trust">
+      <div class="trust-avatars">
+        <div class="av">R</div>
+        <div class="av">S</div>
+        <div class="av">A</div>
+        <div class="av">M</div>
+        <div class="av">+</div>
+      </div>
+      <div class="trust-text">Trusted by <strong>50,000+</strong> patients worldwide</div>
+    </div>
+  </div>
+
+  <!-- Floating badges -->
+  <div class="hero-badge b1">🔒 HIPAA Compliant &nbsp;<strong style="color:var(--c-green)">Verified</strong></div>
+  <div class="hero-badge b2">⚡ Avg. response <strong style="color:var(--c-green)">&lt;1 sec</strong></div>
+
+  <!-- Hero Card -->
+  <div class="hero-visual">
+    <div class="hero-card">
+      <div class="hc-header">
+        <div class="hc-title">AI Health Analysis</div>
+        <div class="hc-status">● Analyzing</div>
+      </div>
+      <div class="hc-vitals">
+        <div class="vital">
+          <div class="vital-label">Heart Rate</div>
+          <div class="vital-val">72 <span style="font-size:14px;color:var(--c-muted)">bpm</span></div>
+          <div class="vital-sub">↑ Normal range</div>
+        </div>
+        <div class="vital">
+          <div class="vital-label">Blood Pressure</div>
+          <div class="vital-val">120<span style="font-size:14px">/80</span></div>
+          <div class="vital-sub">✓ Optimal</div>
+        </div>
+        <div class="vital">
+          <div class="vital-label">SpO2</div>
+          <div class="vital-val">98<span style="font-size:14px;color:var(--c-muted)">%</span></div>
+          <div class="vital-sub">✓ Excellent</div>
+        </div>
+        <div class="vital">
+          <div class="vital-label">Temp</div>
+          <div class="vital-val">98.4<span style="font-size:14px;color:var(--c-muted)">°F</span></div>
+          <div class="vital-sub">✓ Normal</div>
+        </div>
+      </div>
+      <div class="hc-bar">
+        <div class="bar-label"><span>Symptom Severity</span><span style="color:var(--c-green)">Low · 18%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:18%"></div></div>
+      </div>
+      <div class="hc-bar">
+        <div class="bar-label"><span>Overall Health Score</span><span style="color:var(--c-teal)">92%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:92%;animation-delay:1.3s"></div></div>
+      </div>
+      <div class="hc-insight">
+        <span class="icon">🤖</span>
+        <span>All vitals are within healthy parameters. Mild fatigue detected — recommend 8hrs of sleep and increased hydration.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── MARQUEE BAND ─── -->
+<div class="marquee-band">
+  <div class="marquee-inner">
+    <span>Symptom Analysis <span class="dot">◆</span></span>
+    <span>AI Diagnostics <span class="dot">◆</span></span>
+    <span>24/7 Availability <span class="dot">◆</span></span>
+    <span>Emergency Detection <span class="dot">◆</span></span>
+    <span>Medication Guidance <span class="dot">◆</span></span>
+    <span>Mental Health Support <span class="dot">◆</span></span>
+    <span>Doctor Referrals <span class="dot">◆</span></span>
+    <span>Health Monitoring <span class="dot">◆</span></span>
+    <span>Wellness Tracking <span class="dot">◆</span></span>
+    <span>Clinical Accuracy <span class="dot">◆</span></span>
+    <!-- duplicate for seamless loop -->
+    <span>Symptom Analysis <span class="dot">◆</span></span>
+    <span>AI Diagnostics <span class="dot">◆</span></span>
+    <span>24/7 Availability <span class="dot">◆</span></span>
+    <span>Emergency Detection <span class="dot">◆</span></span>
+    <span>Medication Guidance <span class="dot">◆</span></span>
+    <span>Mental Health Support <span class="dot">◆</span></span>
+    <span>Doctor Referrals <span class="dot">◆</span></span>
+    <span>Health Monitoring <span class="dot">◆</span></span>
+    <span>Wellness Tracking <span class="dot">◆</span></span>
+    <span>Clinical Accuracy <span class="dot">◆</span></span>
+  </div>
+</div>
+
+<!-- ─── PROBLEM / STATS ─── -->
+<section class="problem-section" id="about">
+  <div class="reveal-left">
+    <div class="section-label">The Problem</div>
+    <h2>Healthcare Shouldn't Be This <span class="gradient-text">Complicated</span></h2>
+    <p>Every year, billions of people delay or avoid seeking medical care due to cost, accessibility, or simply not knowing whether their symptoms are serious enough. The result? Preventable conditions escalate, chronic diseases go unmanaged, and emergency rooms fill with cases that could have been handled earlier.</p>
+    <p>HealthAI was built to close this gap — democratizing access to reliable, personalized health intelligence so that every person, regardless of location or income, can make informed decisions about their wellbeing.</p>
+    <ul class="problem-list">
+      <li><div class="check">✓</div> Instant triage across 2,000+ symptom combinations with clinical precision</li>
+      <li><div class="check">✓</div> Medication awareness guidance for mild-to-moderate conditions</li>
+      <li><div class="check">✓</div> Smart escalation — recognizes when a doctor is truly needed and connects you</li>
+      <li><div class="check">✓</div> Multilingual support reaching underserved communities globally</li>
+      <li><div class="check">✓</div> Fully private, end-to-end encrypted, HIPAA-compliant conversations</li>
+    </ul>
+  </div>
+  <div class="reveal-right">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num">95.4%</div>
+        <div class="stat-desc">Diagnostic accuracy validated against clinical datasets across 18 medical specialties</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">24/7</div>
+        <div class="stat-desc">Round-the-clock availability — no waiting rooms, no hold times, no appointments needed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">0.8s</div>
+        <div class="stat-desc">Average AI response time — faster than any consultation, powered by real-time inference</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">50K+</div>
+        <div class="stat-desc">Active patients across 40+ countries with an average satisfaction score of 4.9/5</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── HOW IT WORKS ─── -->
+<section class="how-section" id="how">
+  <div class="reveal">
+    <div class="section-label" style="justify-content:center">Process</div>
+    <h2>From Symptom to Solution<br><span class="gradient-text">in Four Steps</span></h2>
+    <p class="sub">HealthAI's proprietary pipeline takes you from a vague feeling of "something's off" to a clear, evidence-based recommendation in under 60 seconds.</p>
+  </div>
+  <div class="steps">
+    <div class="step reveal" style="transition-delay:.1s">
+      <div class="step-num">01</div>
+      <h3>Describe Your Symptoms</h3>
+      <p>Type or speak your symptoms in plain language. HealthAI understands natural conversation — no medical jargon required. Describe how you feel, for how long, and any relevant context.</p>
+    </div>
+    <div class="step reveal" style="transition-delay:.25s">
+      <div class="step-num">02</div>
+      <h3>AI Deep Analysis</h3>
+      <p>Our model cross-references your input against a continuously updated medical knowledge base covering 10,000+ conditions, drug interactions, and clinical guidelines from WHO and CDC.</p>
+    </div>
+    <div class="step reveal" style="transition-delay:.4s">
+      <div class="step-num">03</div>
+      <h3>Receive Personalized Guidance</h3>
+      <p>You receive a clear, prioritized report: likely causes, severity assessment, safe home-care options, and a transparent explanation of the AI's reasoning — no black boxes.</p>
+    </div>
+    <div class="step reveal" style="transition-delay:.55s">
+      <div class="step-num">04</div>
+      <h3>Connect or Monitor</h3>
+      <p>If escalation is needed, HealthAI connects you directly to verified doctors. Otherwise, it tracks your condition over time and alerts you if your symptom profile changes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FEATURES GRID ─── -->
+<section class="features-section" id="features">
+  <div class="section-label reveal">Core Capabilities</div>
+  <h2 class="reveal">Everything Your Health<br><span class="gradient-text">Journey Requires</span></h2>
+  <p class="sub reveal">HealthAI isn't just a chatbot — it's a comprehensive health intelligence platform built on clinical expertise and modern AI research.</p>
+
+  <div class="features-grid">
+    <div class="feature-card large reveal">
+      <div class="feature-icon">⚡</div>
+      <h3>Instant Symptom Triage & Differential Diagnosis</h3>
+      <p>When you describe what you're feeling, HealthAI doesn't guess — it reasons. Using a transformer-based model fine-tuned on millions of anonymized clinical records, it generates a differential diagnosis ranked by probability, maps symptoms to body systems, identifies red-flag warning signs, and distinguishes between conditions that look similar but require very different treatment. It considers your age, biological sex, medical history, and geographic region to personalize every result.</p>
+      <div class="feature-tag">Core Engine · NLP + Clinical AI</div>
+    </div>
+    <div class="feature-card reveal" style="transition-delay:.1s">
+      <div class="feature-icon">💊</div>
+      <h3>Smart Medication Awareness</h3>
+      <p>HealthAI provides evidence-based OTC guidance for mild conditions, checks for drug interactions if you share your current medications, and flags contraindications — all while clearly marking what requires a prescription and why.</p>
+      <div class="feature-tag">Pharmacology Layer</div>
+    </div>
+    <div class="feature-card reveal" style="transition-delay:.15s">
+      <div class="feature-icon">🚨</div>
+      <h3>Emergency Detection & Escalation</h3>
+      <p>HealthAI continuously monitors for high-acuity symptom patterns — chest pain, stroke indicators, anaphylaxis signs, and more. When detected, it immediately escalates with location-aware emergency guidance and direct connections to local services.</p>
+      <div class="feature-tag">Safety Layer · Always Active</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🧠</div>
+      <h3>Mental Health & Emotional Wellness</h3>
+      <p>Beyond physical symptoms, HealthAI screens for depression, anxiety, burnout, and sleep disorders using validated clinical questionnaires (PHQ-9, GAD-7). It provides CBT-based coping strategies and connects users to licensed therapists when needed.</p>
+      <div class="feature-tag">Mental Health Module</div>
+    </div>
+    <div class="feature-card reveal" style="transition-delay:.1s">
+      <div class="feature-icon">📊</div>
+      <h3>Longitudinal Health Tracking</h3>
+      <p>HealthAI builds a persistent health profile over time, tracking symptom patterns, flagging recurring conditions, and identifying trends that single-session tools miss. Your health data tells a story — HealthAI reads it for you.</p>
+      <div class="feature-tag">Health Timeline</div>
+    </div>
+    <div class="feature-card reveal" style="transition-delay:.15s">
+      <div class="feature-icon">🎥</div>
+      <h3>Curated Medical Education Library</h3>
+      <p>For every condition or recommendation, HealthAI surfaces peer-reviewed articles, explainer videos from verified medical professionals, and illustrated anatomy guides — empowering patients with genuine understanding, not just instructions.</p>
+      <div class="feature-tag">Education Engine</div>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🌐</div>
+      <h3>Multilingual Global Reach</h3>
+      <p>HealthAI converses fluently in 30+ languages and dialects, with culturally-adapted health recommendations that account for regional disease prevalence, local healthcare norms, and available treatments in your country.</p>
+      <div class="feature-tag">Global · 30+ Languages</div>
+    </div>
+    <div class="feature-card large reveal" style="transition-delay:.1s">
+      <div class="feature-icon">🔒</div>
+      <h3>Enterprise-Grade Privacy & Security Architecture</h3>
+      <p>Your health data is among the most sensitive information in existence. HealthAI is built on a zero-knowledge architecture: end-to-end AES-256 encryption, no data sold to third parties, full HIPAA and GDPR compliance, on-device pre-processing, and regular third-party security audits. You own your data entirely — export or delete at any time with a single click. Our infrastructure runs on SOC 2 Type II certified cloud providers with 99.99% uptime SLA.</p>
+      <div class="feature-tag">Privacy-First · HIPAA + GDPR</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── ANALYSIS VISUAL ─── -->
+<section class="analysis-section">
+  <div class="analysis-visual reveal-left">
+    <div class="analysis-card">
+      <div class="ac-head">
+        <div class="ac-title">Symptom Intelligence Report</div>
+        <div class="ac-badge">AI Confidence: 94%</div>
+      </div>
+      <div class="symptom-row">
+        <span class="symptom-name">Headache (Tension-type)</span>
+        <div class="symptom-level">
+          <div class="level-dot active green"></div>
+          <div class="level-dot active green"></div>
+          <div class="level-dot active yellow"></div>
+          <div class="level-dot"></div><div class="level-dot"></div>
+        </div>
+        <span class="symptom-pct">Mild · 38%</span>
+      </div>
+      <div class="symptom-row">
+        <span class="symptom-name">Fatigue / Low Energy</span>
+        <div class="symptom-level">
+          <div class="level-dot active green"></div>
+          <div class="level-dot active green"></div>
+          <div class="level-dot active yellow"></div>
+          <div class="level-dot active yellow"></div>
+          <div class="level-dot"></div>
+        </div>
+        <span class="symptom-pct">Moderate · 62%</span>
+      </div>
+      <div class="symptom-row">
+        <span class="symptom-name">Nausea</span>
+        <div class="symptom-level">
+          <div class="level-dot active green"></div>
+          <div class="level-dot"></div><div class="level-dot"></div>
+          <div class="level-dot"></div><div class="level-dot"></div>
+        </div>
+        <span class="symptom-pct">Mild · 21%</span>
+      </div>
+      <div class="symptom-row">
+        <span class="symptom-name">Chest Pain</span>
+        <div class="symptom-level">
+          <div class="level-dot"></div><div class="level-dot"></div>
+          <div class="level-dot"></div><div class="level-dot"></div><div class="level-dot"></div>
+        </div>
+        <span class="symptom-pct" style="color:var(--c-muted)">Not detected</span>
+      </div>
+      <div class="symptom-row">
+        <span class="symptom-name">Fever / Elevated Temp</span>
+        <div class="symptom-level">
+          <div class="level-dot"></div><div class="level-dot"></div>
+          <div class="level-dot"></div><div class="level-dot"></div><div class="level-dot"></div>
+        </div>
+        <span class="symptom-pct" style="color:var(--c-muted)">Not detected</span>
+      </div>
+    </div>
+    <div class="floating-tag ft1">
+      <div class="ft-label">Top Diagnosis</div>
+      <div class="ft-val">Tension Headache</div>
+      <div style="font-size:11px;color:var(--c-green);margin-top:2px">Confidence: 91%</div>
+    </div>
+    <div class="floating-tag ft2">
+      <div class="ft-label">Risk Level</div>
+      <div class="ft-val" style="color:var(--c-teal)">Low</div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:2px">No emergency flags</div>
+    </div>
+  </div>
+  <div class="analysis-text reveal-right">
+    <div class="section-label">Deep Analysis</div>
+    <h2>Clinical-Grade Intelligence <span class="gradient-text">Explained</span></h2>
+    <p>Unlike generic chatbots, HealthAI doesn't just pattern-match keywords. It employs a multi-stage reasoning pipeline that mirrors the diagnostic process a physician follows — systematic, evidence-based, and transparent.</p>
+    <p>Every assessment includes a plain-language explanation of how the AI reached its conclusions, which data points were weighted most heavily, and what the key differentiating factors were — because an informed patient is an empowered patient.</p>
+    <ul class="capability-list">
+      <li><span class="cap-icon">🔬</span> Differential diagnosis across 10,000+ ICD-11 coded conditions with probability scoring</li>
+      <li><span class="cap-icon">⚠️</span> Red-flag symptom detection trained on emergency medicine triage protocols</li>
+      <li><span class="cap-icon">🔗</span> Drug interaction checker covering 80,000+ medication combinations</li>
+      <li><span class="cap-icon">📅</span> Temporal pattern analysis — detects whether your condition is improving or deteriorating</li>
+      <li><span class="cap-icon">👥</span> Demographic adjustment for age, sex, BMI, comorbidities, and family history</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ─── TESTIMONIALS ─── -->
+<section class="testimonials-section">
+  <div class="section-label reveal" style="justify-content:center">Patient Stories</div>
+  <h2 class="reveal">Real People. <span class="gradient-text">Real Results.</span></h2>
+  <p class="sub reveal">Over 50,000 people have used HealthAI to navigate their health. Here's what they say.</p>
+  <div class="testi-grid">
+    <div class="testi-card reveal">
+      <div class="testi-stars"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
+      <p class="testi-text">I described my symptoms to HealthAI at 2 AM — sharp chest tightness and dizziness. It immediately flagged it as a potential cardiac event, told me to call emergency services, and walked me step by step through what to do. Turns out it was a STEMI. HealthAI saved my life that night.</p>
+      <div class="testi-author">
+        <div class="testi-avatar">R</div>
+        <div><div class="testi-name">Rajesh Menon</div><div class="testi-role">Engineer · Pune, India</div></div>
+      </div>
+    </div>
+    <div class="testi-card reveal" style="transition-delay:.1s">
+      <div class="testi-stars"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
+      <p class="testi-text">As a mother of three in a rural area, the nearest doctor is 90 km away. HealthAI has become our family's first point of call for any health concern. The explanations are clear, the guidance is sensible, and it knows exactly when to tell me to make that drive. I trust it completely.</p>
+      <div class="testi-author">
+        <div class="testi-avatar">P</div>
+        <div><div class="testi-name">Priya Shinde</div><div class="testi-role">Teacher · Rural Maharashtra</div></div>
+      </div>
+    </div>
+    <div class="testi-card reveal" style="transition-delay:.2s">
+      <div class="testi-stars"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span></div>
+      <p class="testi-text">I'm a GP myself, and I was skeptical. But I've been recommending HealthAI to my patients for after-hours guidance and it consistently gives appropriate, conservative advice that aligns with clinical guidelines. It's not trying to replace me — it's extending my reach to patients who need help between appointments.</p>
+      <div class="testi-author">
+        <div class="testi-avatar">A</div>
+        <div><div class="testi-name">Dr. Ananya Kapoor</div><div class="testi-role">General Practitioner · Mumbai</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── TECHNOLOGY ─── -->
+<section class="tech-section" id="tech">
+  <div class="section-label reveal">Under the Hood</div>
+  <h2 class="reveal">Built on a Foundation of <span class="gradient-text">Clinical Science</span></h2>
+  <p class="sub reveal">HealthAI isn't a repurposed general-purpose chatbot. Every layer of our system was designed from the ground up with medical accuracy, patient safety, and clinical utility as the primary objectives.</p>
+  <div class="tech-grid">
+    <div class="tech-card reveal">
+      <div class="tech-num">01</div>
+      <div>
+        <h3>Large Language Model Fine-Tuning on Clinical Corpora</h3>
+        <p>Our AI is built on a transformer architecture fine-tuned on 240 million anonymized clinical notes, 180,000 peer-reviewed medical papers, WHO and CDC guidelines, and ICD-11 documentation. Unlike general-purpose models, HealthAI has been specifically trained to reason about medical uncertainty, acknowledge the limits of its knowledge, and always prioritize patient safety over appearing confident.</p>
+      </div>
+    </div>
+    <div class="tech-card reveal" style="transition-delay:.1s">
+      <div class="tech-num">02</div>
+      <div>
+        <h3>Real-Time Medical Knowledge Graph Integration</h3>
+        <p>Beneath the conversational layer, HealthAI queries a continuously-updated medical knowledge graph that links symptoms, conditions, medications, dosages, contraindications, and treatment pathways. This structured knowledge layer ensures factual grounding and prevents hallucination — a critical requirement in healthcare applications where misinformation can cause real harm.</p>
+      </div>
+    </div>
+    <div class="tech-card reveal">
+      <div class="tech-num">03</div>
+      <div>
+        <h3>Multi-Modal Symptom Collection & Verification</h3>
+        <p>Beyond text, HealthAI supports image-based symptom input (skin rashes, wound photos), voice-based symptom reporting with natural speech processing, and integration with wearable device data (heart rate, sleep, SpO2, steps). These input modalities are fused into a unified patient model that gives the AI a richer, more accurate picture of your health status.</p>
+      </div>
+    </div>
+    <div class="tech-card reveal" style="transition-delay:.1s">
+      <div class="tech-num">04</div>
+      <div>
+        <h3>Human-in-the-Loop Clinical Oversight</h3>
+        <p>Every edge case that HealthAI flags as uncertain is reviewed by our clinical advisory board — a team of 40+ physicians, nurses, and medical researchers. Their feedback continuously retrains the model through a reinforcement learning loop, ensuring quality improves every day. For complex or high-stakes situations, users can request direct human clinician review within 15 minutes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── PLANS ─── -->
+<section class="plans-section" id="plans">
+  <div class="section-label reveal" style="justify-content:center">Pricing</div>
+  <h2 class="reveal">Transparent Plans for <span class="gradient-text">Every Need</span></h2>
+  <p class="sub reveal">Whether you're an individual, a family, or an enterprise — HealthAI has a plan that fits. No hidden fees. No surprise charges. Cancel anytime.</p>
+  <div class="plans-grid">
+    <div class="plan-card reveal">
+      <div class="plan-name">Free</div>
+      <div class="plan-price">₹0 <span>/month</span></div>
+      <div class="plan-desc">Everything you need for basic health guidance with no commitment.</div>
+      <ul class="plan-feats">
+        <li><span class="tick">✓</span>5 AI consultations per month</li>
+        <li><span class="tick">✓</span>Basic symptom analysis</li>
+        <li><span class="tick">✓</span>Emergency detection (always on)</li>
+        <li><span class="tick">✓</span>Medical education library access</li>
+        <li><span class="tick">✓</span>English language support</li>
+      </ul>
+      <button class="plan-btn outline">Get Started Free</button>
+    </div>
+    <div class="plan-card popular reveal" style="transition-delay:.1s">
+      <div class="plan-badge">Most Popular</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">₹299 <span>/month</span></div>
+      <div class="plan-desc">Full-featured health intelligence for individuals and families who take health seriously.</div>
+      <ul class="plan-feats">
+        <li><span class="tick">✓</span>Unlimited consultations</li>
+        <li><span class="tick">✓</span>Advanced differential diagnosis</li>
+        <li><span class="tick">✓</span>Medication interaction checker</li>
+        <li><span class="tick">✓</span>Longitudinal health tracking</li>
+        <li><span class="tick">✓</span>Mental health screening modules</li>
+        <li><span class="tick">✓</span>30+ language support</li>
+        <li><span class="tick">✓</span>Priority human clinician review</li>
+      </ul>
+      <button class="plan-btn filled">Start 14-Day Free Trial</button>
+    </div>
+    <div class="plan-card reveal" style="transition-delay:.2s">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-price">Custom</div>
+      <div class="plan-desc">Tailored deployments for hospitals, clinics, and health systems at scale.</div>
+      <ul class="plan-feats">
+        <li><span class="tick">✓</span>Everything in Pro</li>
+        <li><span class="tick">✓</span>EHR/EMR system integration</li>
+        <li><span class="tick">✓</span>Custom AI model fine-tuning</li>
+        <li><span class="tick">✓</span>White-label branding</li>
+        <li><span class="tick">✓</span>HIPAA BAA included</li>
+        <li><span class="tick">✓</span>Dedicated clinical success team</li>
+        <li><span class="tick">✓</span>99.99% uptime SLA</li>
+      </ul>
+      <button class="plan-btn outline">Contact Sales →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ─── FAQ ─── -->
+<section class="faq-section" id="faq">
+  <h2 class="reveal">Frequently Asked <span class="gradient-text">Questions</span></h2>
+  <div class="faq-list">
+
+    <div class="faq-item reveal">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Is HealthAI a replacement for seeing a real doctor?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a"><p>No — and we are very clear about this. HealthAI is a health intelligence tool designed to help you understand your symptoms, make informed decisions, and know when professional care is necessary. It does not issue prescriptions, provide diagnoses in a legal-medical sense, or replace the judgment of a licensed physician. For any serious, persistent, or emergency health concern, always consult a qualified healthcare professional. HealthAI's purpose is to extend access and improve health literacy — not to substitute clinical care.</p></div>
+    </div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        How accurate is HealthAI's symptom analysis?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a"><p>HealthAI achieves 95.4% accuracy in identifying the correct condition within its top-3 differential diagnoses, validated against a held-out test set of 120,000 anonymized clinical records across 18 medical specialties. Emergency condition detection (e.g., cardiac events, strokes, anaphylaxis) achieves 99.1% sensitivity — meaning it almost never misses a life-threatening situation. Accuracy is continuously monitored and improved through our human-in-the-loop review pipeline.</p></div>
+    </div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Who can see my health conversations and data?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a"><p>Nobody except you, by default. HealthAI uses end-to-end AES-256 encryption, meaning conversations are encrypted on your device before they leave it. Our servers cannot read your messages in plaintext. We do not sell, share, or monetize your health data in any way. The only exception is if you explicitly consent to share a conversation with a human clinician for review, or if legally required. We are fully HIPAA and GDPR compliant, and undergo annual third-party security audits.</p></div>
+    </div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Can HealthAI help with mental health concerns?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a"><p>Yes. HealthAI includes a dedicated mental health module that screens for depression, anxiety, PTSD, burnout, sleep disorders, and more using validated clinical instruments (PHQ-9, GAD-7, PCL-5). It provides evidence-based psychoeducation, cognitive behavioral therapy techniques, breathing exercises, and grounding strategies. For users showing moderate-to-severe symptoms, it proactively offers connections to licensed mental health professionals and, in crisis situations, provides emergency mental health resources and crisis hotline numbers.</p></div>
+    </div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Does HealthAI work for children and elderly users?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a"><p>Yes. HealthAI's AI model adjusts its reasoning and recommendations based on the patient's age and demographic context. Pediatric assessments use age-appropriate reference ranges and flag conditions more common in children. Geriatric assessments account for polypharmacy risks, age-related disease prevalence, and mobility considerations. The interface can also be simplified for elderly users with larger text and simplified language modes.</p></div>
+    </div>
+
+    <div class="faq-item reveal">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        Is HealthAI available in Hindi and regional Indian languages?
+        <span class="faq-icon">+</span>
+      </button>
+      <div class="faq-a"><p>Yes. HealthAI currently supports Hindi, Marathi, Tamil, Telugu, Bengali, Kannada, Malayalam, Gujarati, and Punjabi, in addition to English and 21 other global languages. Regional language support includes culturally-adapted health recommendations that account for local disease prevalence, dietary norms, and available medications. We are actively expanding language coverage, with Odia and Assamese coming in Q3 2026.</p></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─── CTA SECTION ─── -->
+<section class="cta-section">
+  <div class="section-label reveal" style="justify-content:center">Get Started</div>
+  <h2 class="reveal">Take Control of Your<br><span class="gradient-text">Health Today</span></h2>
+  <p class="reveal">Join 50,000+ people who trust HealthAI to guide their health decisions. Start for free — no credit card required. Your first consultation is just seconds away.</p>
+  <div class="cta-actions reveal">
+    <button class="btn-primary"><span>Start Free Consultation →</span></button>
+    <button class="btn-ghost">Talk to Sales</button>
+  </div>
+  <div class="cta-grid reveal" style="transition-delay:.2s">
+    <div class="cta-stat"><div class="cta-stat-num">50K+</div><div class="cta-stat-label">Active Patients</div></div>
+    <div class="cta-stat"><div class="cta-stat-num">95.4%</div><div class="cta-stat-label">Diagnostic Accuracy</div></div>
+    <div class="cta-stat"><div class="cta-stat-num">4.9/5</div><div class="cta-stat-label">User Satisfaction</div></div>
+    <div class="cta-stat"><div class="cta-stat-num">40+</div><div class="cta-stat-label">Countries Served</div></div>
+  </div>
+</section>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <div class="footer-top">
+    <div class="footer-brand">
+      <h3>Health<span style="color:var(--c-green)">AI</span> 🩺</h3>
+      <p>Intelligent health guidance powered by clinical AI — accessible to everyone, everywhere, at any hour. Your health deserves better than waiting.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Product</h4>
+      <a href="#">Features</a>
+      <a href="#">How It Works</a>
+      <a href="#">Pricing</a>
+      <a href="#">API Access</a>
+      <a href="#">Enterprise</a>
+    </div>
+    <div class="footer-col">
+      <h4>Medical</h4>
+      <a href="#">Symptom Library</a>
+      <a href="#">Conditions Database</a>
+      <a href="#">Drug Interactions</a>
+      <a href="#">Emergency Guide</a>
+      <a href="#">Mental Health Hub</a>
+    </div>
+    <div class="footer-col">
+      <h4>Company</h4>
+      <a href="#">About Us</a>
+      <a href="#">Clinical Team</a>
+      <a href="#">Research</a>
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Service</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2026 HealthAI. All rights reserved. | Built with ❤️ and clinical rigor.</p>
+    <p><a href="#">Privacy</a> · <a href="#">Terms</a> · <a href="#">HIPAA Compliance</a> · <a href="#">Contact</a></p>
+    <p style="color:#3a5a52;font-size:12px">⚠️ HealthAI is not a substitute for professional medical advice, diagnosis, or treatment.</p>
+  </div>
+</footer>
+
+<!-- ─── CHATBOT ─── -->
+<df-messenger
+  intent="WELCOME"
+  chat-title="HealthAI Assistant"
+  agent-id="f33c4b3a-ecd8-43de-a774-a5922bd49dee"
+  language-code="en">
+</df-messenger>
+
+<script>
+/* ── Cursor ── */
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+let mx=0,my=0,rx=0,ry=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cursor.style.left=mx+'px';cursor.style.top=my+'px'});
+(function animRing(){ring.style.left=rx+'px';ring.style.top=ry+'px';rx+=(mx-rx)*.12;ry+=(my-ry)*.12;requestAnimationFrame(animRing)})();
+
+/* ── Navbar shrink ── */
+const nav=document.getElementById('navbar');
+window.addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>60));
+
+/* ── Scroll reveal ── */
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')});
+},{threshold:.1});
+document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(el=>obs.observe(el));
+
+/* ── FAQ accordion ── */
+function toggleFaq(btn){
+  const item=btn.closest('.faq-item');
+  const open=item.classList.contains('open');
+  document.querySelectorAll('.faq-item.open').forEach(el=>el.classList.remove('open'));
+  if(!open)item.classList.add('open');
+}
+
+/* ── Number counter animation ── */
+function animateCount(el,target,decimals=0,suffix=''){
+  let start=0,duration=2000,startTime=null;
+  const step=ts=>{
+    if(!startTime)startTime=ts;
+    const p=Math.min((ts-startTime)/duration,1);
+    const ease=1-Math.pow(1-p,4);
+    const val=(target*ease).toFixed(decimals);
+    el.textContent=val+suffix;
+    if(p<1)requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+const counterObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting && !e.target.dataset.counted){
+      e.target.dataset.counted='1';
+      const t=e.target.dataset.target;
+      const d=parseInt(e.target.dataset.dec||0);
+      const s=e.target.dataset.suffix||'';
+      animateCount(e.target,parseFloat(t),d,s);
+    }
+  });
+},{threshold:.5});
+document.querySelectorAll('[data-target]').forEach(el=>counterObs.observe(el));
+
+/* ── Parallax orbs (subtle) ── */
+window.addEventListener('scroll',()=>{
+  const y=scrollY*.04;
+  document.querySelector('.hero::before');
+  // subtle parallax handled via CSS animations
+});
+</script>
+</body>
+</html>
